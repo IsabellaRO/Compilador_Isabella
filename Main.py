@@ -1,56 +1,89 @@
-listaatual = []
-parciais = []
-atual = ""
-entrada  = input("Digite o que deseja calcular: ")
-i = 0
+class Token:
+    def __init__(self, tipo, valor):
+        self.type = tipo # string
+        self.value = valor # integer
 
-if (not entrada[0].isnumeric()) or (not entrada[-1].isnumeric()):
-    print("Entrada inválida")
-    exit()
+class Tokenizer:
+    def __init__(self, origin, actual):
+        self.origin = origin # string, código fonte que sera tokenizado
+        self.position = 0 # integer, posição atual que o Tokenizador está separando
+        if actual == None:
+            self.actual = Token("int", 0) # token, lê o próximo token e atualiza o atributo actual
+        else:
+            self.actual = Token(actual.type, actual.value)
 
-while(i < len(entrada)):
-    while(entrada[i].isnumeric()):
-        listaatual.append(entrada[i])
-        if (i < len(entrada)):
-            i += 1
-        if (i > len(entrada)-1):
-            break
+    def selectNext(self):
+        while (self.position < len(self.origin)) and self.origin[self.position] == " ": # se for espaço só pula
+            self.position = self.position + 1
+
+        if self.position == len(self.origin):
+            self.actual = Token("eof", "-1")
+
+        elif self.origin[self.position].isdigit():
+            word = ""
+            while (self.position < len(self.origin)) and (self.origin[self.position].isdigit()): # se for digito vai concatenando
+                word = word + self.origin[self.position]
+                self.position = self.position + 1
+
+            self.actual = Token("int", int(word))
+
+        elif self.origin[self.position] == '+': # se for soma
+            self.actual =  Token("plus", "+")
+            self.position = self.position + 1
+
+        elif self.origin[self.position] == '-': # se for sub
+            self.actual = Token("minus", "-")
+            self.position = self.position + 1
+
+        else:
+            raise ValueError("Caractere inválido.")
+
+        return self.actual
+
+class Parser:
+        
+    def parseExpression():
+        if Parser.tokens.actual.type == "int":
+            res = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+            while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
+                if Parser.tokens.actual.type == "plus":
+                    Parser.tokens.selectNext()
+                    if Parser.tokens.actual.type == "int":
+                        res = res + Parser.tokens.actual.value
+                    else:
+                        raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a soma.')
+
+                elif Parser.tokens.actual.type == "minus":
+                    Parser.tokens.selectNext()
+                    if Parser.tokens.actual.type == "int":
+                        res = res - Parser.tokens.actual.value
+                    else:
+                        raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a subtração.')
+
+                Parser.tokens.selectNext()
+        
+        else:
+            raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'no início da expressão.')
     
-    if(len(listaatual) > 0):
-        for n in listaatual:
-            atual = atual + n
-        atual = int(atual)
-        parciais.append(atual)
-        listaatual = []
-        atual = ""
+        return res
 
-    if (i < len(entrada)-1):
-        if (entrada[i] == " "):
-            i+=1
-            pass
+    def run(origin):
+        Parser.tokens = Tokenizer(origin, None)
+        Parser.tokens.selectNext()
+        res = Parser.parseExpression()
+        if Parser.tokens.actual.type != 'eof':
+            raise ValueError('Entrada inválida')
+        
+        return res
+    
 
-        elif (entrada[i] == "+" or entrada[i] == "-"):
-            parciais.append(entrada[i])
-            i+=1
-            pass
+def main():
+    try:
+        entrada  = input("Digite o que deseja calcular: ")
+        res = Parser.run(entrada)
+        print("Resultado:", res)
+    except Exception as ex:
+        print(ex)
 
-        if (i >= len(entrada)):
-            break
-
-n = 0
-resultado = 0
-while(n < len(parciais)):
-    if n == 0:
-        resultado = parciais[n]
-    elif (parciais[n] == "+"):
-        n += 1
-        resultado += parciais[n]
-
-    elif (parciais[n] == "-"):
-        n += 1
-        resultado -= parciais[n]
-
-    n +=1
-
-#print(parciais)
-print(resultado)
+if  __name__ =='__main__':main()
