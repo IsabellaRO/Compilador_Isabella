@@ -27,6 +27,14 @@ class Tokenizer:
 
             self.actual = Token("int", int(word))
 
+        elif self.origin[self.position] == '*': # se for mult
+            self.actual =  Token("mult", "*")
+            self.position = self.position + 1
+
+        elif self.origin[self.position] == '/': # se for div
+            self.actual =  Token("div", "/")
+            self.position = self.position + 1
+
         elif self.origin[self.position] == '+': # se for soma
             self.actual =  Token("plus", "+")
             self.position = self.position + 1
@@ -41,31 +49,41 @@ class Tokenizer:
         return self.actual
 
 class Parser:
-        
-    def parseExpression():
+    
+    def parseTerm():
         if Parser.tokens.actual.type == "int":
             res = Parser.tokens.actual.value
             Parser.tokens.selectNext()
-            while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
-                if Parser.tokens.actual.type == "plus":
+            while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div":
+                if Parser.tokens.actual.type == "mult":
                     Parser.tokens.selectNext()
                     if Parser.tokens.actual.type == "int":
-                        res = res + Parser.tokens.actual.value
+                        res = res * Parser.tokens.actual.value
                     else:
                         raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a soma.')
 
-                elif Parser.tokens.actual.type == "minus":
+                elif Parser.tokens.actual.type == "div":
                     Parser.tokens.selectNext()
                     if Parser.tokens.actual.type == "int":
-                        res = res - Parser.tokens.actual.value
+                        res = res // Parser.tokens.actual.value
                     else:
                         raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a subtração.')
-
+                
                 Parser.tokens.selectNext()
-        
         else:
             raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'no início da expressão.')
-    
+        
+        return res
+
+    def parseExpression():
+        res = Parser.parseTerm()
+        while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
+            if Parser.tokens.actual.type == "plus":
+                Parser.tokens.selectNext()
+                res = res + Parser.parseTerm()
+            elif Parser.tokens.actual.type == "minus":
+                Parser.tokens.selectNext()
+                res = res - Parser.parseTerm()    
         return res
 
     def run(origin):
