@@ -69,7 +69,7 @@ class Parser:
                     if Parser.tokens.actual.type == "int":
                         res = res // Parser.tokens.actual.value
                     else:
-                            raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a subtração.')
+                        raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a subtração.')
                 
                 Parser.tokens.selectNext()
         else:
