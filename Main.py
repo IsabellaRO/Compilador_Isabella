@@ -45,6 +45,14 @@ class Tokenizer:
             self.actual = Token("minus", "-")
             self.position = self.position + 1
 
+        elif self.origin[self.position] == '(': # se for abrir par
+            self.actual = Token("openpar", "(")
+            self.position = self.position + 1
+
+        elif self.origin[self.position] == ')': # se for fechar par
+            self.actual = Token("closepar", ")")
+            self.position = self.position + 1
+
         else:
             raise ValueError("Caractere inválido.")
 
@@ -53,28 +61,14 @@ class Tokenizer:
 class Parser:
     
     def parseTerm():
-        if Parser.tokens.actual.type == "int":
-            res = Parser.tokens.actual.value
-            Parser.tokens.selectNext()
-            while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div":
-                if Parser.tokens.actual.type == "mult":
-                    Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type == "int":
-                        res = res * Parser.tokens.actual.value
-                    else:
-                        raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a soma.')
-                    
-                elif Parser.tokens.actual.type == "div":
-                    Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type == "int":
-                        res = res // Parser.tokens.actual.value
-                    else:
-                        raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a subtração.')
-                
+        res = Parser.parseFactor()
+        while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div":
+            if Parser.tokens.actual.type == "mult":
                 Parser.tokens.selectNext()
-        else:
-            raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'no início da expressão.')
-        
+                res = res * Parser.parseFactor()
+            elif Parser.tokens.actual.type == "div":
+                Parser.tokens.selectNext()
+                res = res // Parser.parseFactor()    
         return res
 
     def parseExpression():
@@ -87,6 +81,33 @@ class Parser:
                 Parser.tokens.selectNext()
                 res = res - Parser.parseTerm()    
         return res
+
+    def parseFactor():
+        if Parser.tokens.actual.type == "int":
+            res = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+            return res
+        elif Parser.tokens.actual.type == "openpar":
+            Parser.tokens.selectNext()
+            res = Parser.parseExpression()
+            if Parser.tokens.actual.type == "closepar":
+                Parser.tokens.selectNext()
+                return res
+            else:
+                raise ValueError('Esperava-se um fecha parênteses e foi encontrado um {}.'.format(Parser.tokens.actual.type))
+
+        elif Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
+            if Parser.tokens.actual.type == "plus":
+                Parser.tokens.selectNext()
+                res = Parser.parseFactor()
+                return res
+            else:
+                Parser.tokens.selectNext()
+                res = Parser.parseFactor()
+                return -res
+        
+        else:
+            raise ValueError('Token inválido.')
 
     def run(origin):
         Parser.tokens = Tokenizer(origin, None)
