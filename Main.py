@@ -1,3 +1,5 @@
+import re
+
 class Token:
     def __init__(self, tipo, valor):
         self.type = tipo # string
@@ -61,13 +63,13 @@ class Parser:
                         res = res * Parser.tokens.actual.value
                     else:
                         raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a soma.')
-
+                    
                 elif Parser.tokens.actual.type == "div":
                     Parser.tokens.selectNext()
                     if Parser.tokens.actual.type == "int":
                         res = res // Parser.tokens.actual.value
                     else:
-                        raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a subtração.')
+                            raise ValueError('Esperava-se um int e foi encontrado um', Parser.tokens.actual.type, 'durante a subtração.')
                 
                 Parser.tokens.selectNext()
         else:
@@ -91,15 +93,23 @@ class Parser:
         Parser.tokens.selectNext()
         res = Parser.parseExpression()
         if Parser.tokens.actual.type != 'eof':
-            raise ValueError('Entrada inválida')
+            raise ValueError('Entrada inválida. Último token não é o EOF.')
         
         return res
-    
+
+class PrePro:
+
+    def filter(entrada):
+        filtro = re.sub("'.*\n", "", entrada) #para arquivos
+        filtro = re.sub("'.*\r", "", filtro) #para arquivos
+        filtro = re.sub("'.*", "", filtro) #apenas para o meu terminal
+        return filtro   
 
 def main():
     try:
         entrada  = input("Digite o que deseja calcular: ")
-        res = Parser.run(entrada)
+        codigo = PrePro.filter(entrada)
+        res = Parser.run(codigo)
         print("Resultado:", res)
     except Exception as ex:
         print(ex)
