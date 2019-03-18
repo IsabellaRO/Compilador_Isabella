@@ -121,7 +121,8 @@ class Parser:
 class PrePro:
 
     def filter(entrada):
-        filtro = re.sub("'.*\n", "", entrada) #para arquivos
+        filtro = entrada.replace('\\n', '\n')
+        filtro = re.sub("'.*\n", "", filtro) #para arquivos
         filtro = re.sub("'.*\r", "", filtro) #para arquivos
         filtro = re.sub("'.*", "", filtro) #apenas para o meu terminal
         return filtro   
