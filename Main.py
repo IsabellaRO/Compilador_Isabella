@@ -19,7 +19,7 @@ class Tokenizer:
             self.position = self.position + 1
 
         if self.position == len(self.origin):
-            self.actual = Token("eof", "-1")
+            self.actual = Token("eof", "eof")
 
         elif self.origin[self.position].isdigit():
             word = ""
@@ -61,32 +61,38 @@ class Tokenizer:
 class Parser:
     
     def parseTerm():
-        res = Parser.parseFactor()
+        left = Parser.parseFactor()
         while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div":
             if Parser.tokens.actual.type == "mult":
                 Parser.tokens.selectNext()
-                res = res * Parser.parseFactor()
+                right =  Parser.parseTerm()
+                left = BinOp("*", [left, right])
             elif Parser.tokens.actual.type == "div":
                 Parser.tokens.selectNext()
-                res = res // Parser.parseFactor()    
-        return res
+                right =  Parser.parseTerm()
+                left = BinOp("/", [left, right]) 
+        return left
 
     def parseExpression():
-        res = Parser.parseTerm()
+        left = Parser.parseTerm()
         while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
             if Parser.tokens.actual.type == "plus":
                 Parser.tokens.selectNext()
-                res = res + Parser.parseTerm()
+                right =  Parser.parseTerm()
+                left = BinOp("+", [left, right])
             elif Parser.tokens.actual.type == "minus":
                 Parser.tokens.selectNext()
-                res = res - Parser.parseTerm()    
-        return res
+                right =  Parser.parseTerm()
+                left = BinOp("-", [left, right])
+        return left
 
     def parseFactor():
         if Parser.tokens.actual.type == "int":
             res = Parser.tokens.actual.value
             Parser.tokens.selectNext()
-            return res
+            left = IntVal(res, [])
+            return left
+
         elif Parser.tokens.actual.type == "openpar":
             Parser.tokens.selectNext()
             res = Parser.parseExpression()
@@ -99,15 +105,17 @@ class Parser:
         elif Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
             if Parser.tokens.actual.type == "plus":
                 Parser.tokens.selectNext()
-                res = Parser.parseFactor()
-                return res
+                left = Parser.parseFactor()
+                left = UnOp("+", [left])
+                return left
             else:
                 Parser.tokens.selectNext()
-                res = Parser.parseFactor()
-                return -res
+                left = Parser.parseFactor()
+                left = UnOp("-", [left])
+                return left
         
         else:
-            raise ValueError('Token inválido.')
+            raise ValueError('Token inválido: {}'.format(Parser.tokens.actual.value))
 
     def run(origin):
         Parser.tokens = Tokenizer(origin, None)
@@ -127,12 +135,69 @@ class PrePro:
         filtro = re.sub("'.*", "", filtro) #apenas para o meu terminal
         return filtro   
 
+class Node():
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+    
+    def Evaluate(self):
+        pass
+
+class BinOp(Node): #2 filhos, binary
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        if self.value == "+":
+            return self.children[0].Evaluate() + self.children[1].Evaluate()
+
+        elif self.value == "-":
+            return self.children[0].Evaluate() - self.children[1].Evaluate()
+
+        elif self.value == "*":
+            return self.children[0].Evaluate() * self.children[1].Evaluate()
+
+        elif self.value == "/":
+            return self.children[0].Evaluate() // self.children[1].Evaluate()
+
+class UnOp(Node): #1 filho, unary
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        if self.value == "+":
+            return + self.children[0].Evaluate()
+
+        elif self.value == "-":
+            return - self.children[0].Evaluate()
+
+class IntVal(Node): #0 filhos, int value
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        return self.value
+
+class NoOp(Node): #0 filhos, dummy
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        pass
+
 def main():
     try:
-        entrada  = input("Digite o que deseja calcular: ")
-        codigo = PrePro.filter(entrada)
+        #entrada  = input("Digite o que deseja calcular: ")
+        with open ('expressao.vbs', 'r') as file:
+            entrada = file.read() + "\n"
+        codigo = PrePro.filter(entrada).rstrip() #apaga qualquer coisa que estiver no fim da string, tipo espaço
         res = Parser.run(codigo)
-        print("Resultado:", res)
+        print("Resultado:", res.Evaluate())
+
     except Exception as ex:
         print(ex)
 
