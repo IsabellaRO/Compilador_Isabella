@@ -1,4 +1,6 @@
 import re
+reserved = ["Print", "Begin", "End"]
+Print, Begin, End = reserved
 
 class Token:
     def __init__(self, tipo, valor):
@@ -53,13 +55,61 @@ class Tokenizer:
             self.actual = Token("closepar", ")")
             self.position = self.position + 1
 
+        elif self.origin[self.position] == '=': # se for igual
+            self.actual = Token("assignment", "=")
+            self.position = self.position + 1
+
+        elif self.origin[self.position].isalpha():
+            word = ""
+            while (self.origin[self.position].isalpha() or self.origin[self.position].isdigit() or self.origin[self.position] == "_"): 
+                word = word + self.origin[self.position]
+                self.position = self.position + 1
+
+            if word in reserved:
+                self.actual = Token(word, word)
+            
+            else:
+                self.actual = Token("identifier", word)
+
         else:
-            raise ValueError("Caractere inválido.")
+            raise ValueError("Caractere inválido: {}".format(self.origin[self.position]))
 
         return self.actual
 
 class Parser:
-    
+    def Statements():
+        if Parser.tokens.actual.type == Begin:
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "\n":
+                Parser.tokens.selectNext()
+                while Parser.tokens.actual.type != End:
+                    Parser.tokens.selectNext()
+                    #######inicia um nó vazio e cada vez que passa no statement add um filho
+                    left = Parser.Statement()
+                    if Parser.tokens.actual.type == "\n":
+                        Parser.tokens.selectNext()
+                
+                if Parser.tokens.actual.type == End: 
+                    return left
+
+    def Statement():
+        if Parser.tokens.actual.type == "identifier":
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "assignment":
+                Parser.tokens.selectNext()
+                left = Parser.Expression()
+
+        elif Parser.tokens.actual.type == Print:
+            Parser.tokens.selectNext()
+            left = Parser.Expression()
+
+        elif Parser.tokens.actual.type == Begin:
+            ################ faz o que?
+
+        else:
+            return NoOp() ############# qual valor?
+
+
     def parseTerm():
         left = Parser.parseFactor()
         while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div":
@@ -113,6 +163,10 @@ class Parser:
                 left = Parser.parseFactor()
                 left = UnOp("-", [left])
                 return left
+        
+        if Parser.tokens.actual.type == "identifier":
+            Parser.tokens.selectNext()
+            return Identifier(valor, []) ######################################
         
         else:
             raise ValueError('Token inválido: {}'.format(Parser.tokens.actual.value))
@@ -187,6 +241,42 @@ class NoOp(Node): #0 filhos, dummy
         self.children = listafilhos
 
     def Evaluate(self):
+        pass
+
+class Statements(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        ################### faz o que?
+        pass
+
+class Identifier(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        ################### faz o que?
+        pass
+
+class Assignment(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        ################### faz o que?
+        pass
+
+class Print(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self):
+        ################### faz o que?
         pass
 
 def main():
