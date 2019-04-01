@@ -97,7 +97,7 @@ class Parser:
                     if Parser.tokens.actual.type == "breakline":
                         Parser.tokens.selectNext()
                     else:
-                        raise ValueError('Esperavaaaaaaaa-se token "\\n", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
+                        raise ValueError('Esperava-se token "\\n", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
 
                 if Parser.tokens.actual.type == END: 
                     Parser.tokens.selectNext()
