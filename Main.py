@@ -326,6 +326,7 @@ def main():
         #entrada  = input("Digite o que deseja calcular: ")
         with open (str(sys.argv[1]), 'r') as file:
             entrada = file.read()# + "\n"
+            
         codigo = PrePro.filter(entrada).rstrip() #apaga qualquer coisa que estiver no fim da string, tipo espaço
         res = Parser.run(codigo)
         ST = SymbolTable()
