@@ -127,7 +127,8 @@ class Parser:
 
         elif Parser.tokens.actual.type == PRINT:
             Parser.tokens.selectNext()
-            node = Print(PRINT, [Parser.parseExpression()])
+            left = Parser.parseExpression()
+            node = Print(PRINT, [left])
             return node
 
 
@@ -189,7 +190,8 @@ class Parser:
                 left = UnOp("-", [left])
         
         elif Parser.tokens.actual.type == "identifier":
-            node = Identifier(Parser.tokens.actual.value, [])
+            res = Parser.tokens.actual.value
+            node = Identifier(res, [])
             Parser.tokens.selectNext()
             return node
         
@@ -214,7 +216,7 @@ class PrePro():
         filtro = re.sub("'.*\n", "\n", filtro) #para arquivos
         #filtro = re.sub("'.*\r", "\n", filtro) #para arquivos
         #filtro = re.sub("'.*", "", filtro) #apenas para o meu terminal
-        return re.sub("^(\s*(\r\n|\n|\r))", '', filtro)
+        return filtro
 
         
 class SymbolTable():
@@ -223,14 +225,14 @@ class SymbolTable():
 
     def getter(self, chave):
         if chave in self.table.keys():
-            return self.table[chave]
+            res = self.table.get(chave)
+            return res
 
         else:
             raise ValueError("Chave {} não localizada na Tabela de Símbolos".format(chave))
-
     
-    def setter(self,chave,value):
-        self.table.update({chave: value})
+    def setter(self, chave, valor):
+        self.table.update({chave: valor})
 
 class Node():
     def __init__(self, valor, listafilhos):

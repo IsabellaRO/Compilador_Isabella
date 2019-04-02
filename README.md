@@ -2,9 +2,11 @@
 
 
 ### EBNF:
+##### Statements = "BEGIN", "\n", {(statement, "\n")}, ("END" | statements);
+##### Statement = "" | (identifier, "=", expressão) | ("PRINT", expressão) | statements;
 ##### expressão = termo, {("+"|"-"), termo};
 ##### termo = factor, {("*"|"/"), factor};
-##### factor = número | {("(", expressão, ")")} | (("+"|"-"), factor);
+##### factor = número | identifier | {("(", expressão, ")")} | (("+"|"-"), factor);
 
 ### Diagrama Sintático:
-![Diagrama_compilador](imgs/diagramalc.png "Diagrama 1")
+![Diagrama_compilador](imgs/diagramalc.JPG "Diagrama 1")
