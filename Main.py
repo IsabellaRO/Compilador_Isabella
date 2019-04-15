@@ -1,8 +1,8 @@
 import re
 import sys
 
-reserved = ["PRINT", "BEGIN", "END"]
-PRINT, BEGIN, END = reserved
+reserved = ["PRINT", "BEGIN", "END", "WHILE", "WEND", "IF", "ELSE", "THEN", "AND", "OR", "INPUT"]
+PRINT, BEGIN, END, WHILE, WEND, IF, ELSE, THEN, AND, OR, INPUT = reserved
 
 class Token:
     def __init__(self, tipo, valor):
@@ -65,6 +65,14 @@ class Tokenizer:
             self.actual = Token("breakline", "\n")
             self.position = self.position + 1
 
+        elif self.origin[self.position] == '>': # se for quebra de linha
+            self.actual = Token("greaterthan", ">")
+            self.position = self.position + 1
+
+        elif self.origin[self.position] == '<': # se for quebra de linha
+            self.actual = Token("lessthan", "<")
+            self.position = self.position + 1
+
         elif self.origin[self.position].isalpha():
             
             word = "" #se for palavra vai concatenando, precisa checar se chegou no final
@@ -88,28 +96,16 @@ class Parser:
     @staticmethod
     def Statements():
         listafilhos = []
-        if Parser.tokens.actual.type == BEGIN:
-            Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == "breakline":
-                Parser.tokens.selectNext()
-                while Parser.tokens.actual.type != END:
-                    listafilhos.append(Parser.Statement()) 
-                    if Parser.tokens.actual.type == "breakline":
-                        Parser.tokens.selectNext()
-                    else:
-                        raise ValueError('Esperava-se token "\\n", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
-
-                if Parser.tokens.actual.type == END: 
+        while Parser.tokens.actual.type != END and Parser.tokens.actual.type != WEND and Parser.tokens.actual.type != ELSE and Parser.tokens.actual.type != "eof":
+            node = Parser.Statement() 
+            if node != None:
+                listafilhos.append(node)
+                if Parser.tokens.actual.type == "breakline":
                     Parser.tokens.selectNext()
-                    node = Statements(" ", listafilhos) # inicia nó vazio e cada vez que passar por statement add filho
-                    return node
-
-                else:
-                    raise ValueError('Esperava-se token "End", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
-            else:
-                        raise ValueError('Esperava-se token "\\n", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
-        else:
-            raise ValueError('Esperava-se token "Begin", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
+                #else:
+                #    raise ValueError('Esperava-se token "\\n", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
+        
+        return Statements("Statements", listafilhos)
 
     @staticmethod
     def Statement():
@@ -120,6 +116,8 @@ class Parser:
                 Parser.tokens.selectNext()
                 left = Parser.parseExpression()
                 node = Assignment("=", [identifier, left])
+                if Parser.tokens.actual.type == "breakline":#////////////////////////////////////////////////
+                    Parser.tokens.selectNext()
                 return node
 
             else:
@@ -129,19 +127,80 @@ class Parser:
             Parser.tokens.selectNext()
             left = Parser.parseExpression()
             node = Print(PRINT, [left])
+            if Parser.tokens.actual.type == "breakline":#////////////////////////////////////////////////
+                Parser.tokens.selectNext()
             return node
 
+        elif Parser.tokens.actual.type == WHILE:
+            Parser.tokens.selectNext()
+            left = Parser.RelExpression() 
+            if Parser.tokens.actual.type == "breakline": #breakline se quiser
+                Parser.tokens.selectNext()
+            right = Parser.Statements()
+            if Parser.tokens.actual.type == WEND:
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "breakline":#////////////////////////////////////////////////
+                    Parser.tokens.selectNext()
+                return WhileOp("While", [left, right])
+            else:
+                raise ValueError('Esperava-se um "WEND", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+            
+        elif Parser.tokens.actual.type == IF:
+            Parser.tokens.selectNext()
+            node = Parser.RelExpression()
+            left = None
+            right = None
+            if Parser.tokens.actual.type == THEN:
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "breakline": #breakline se quiser
+                    Parser.tokens.selectNext()
+                left = Parser.Statements() #Faz node if com ele
+            else:
+                raise ValueError('Esperava-se um "THEN", porém foi encontrado {}'.format(Parser.tokens.actual.value))
 
-        elif Parser.tokens.actual.type == BEGIN:
-            node = Parser.Statements()
-            return node
+            if Parser.tokens.actual.type == ELSE:
+                Parser.tokens.selectNext()
+                right = Parser.Statements()
+            
+            if Parser.tokens.actual.type == END:
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == IF:
+                    Parser.tokens.selectNext()
+                    if Parser.tokens.actual.type == "breakline":
+                        Parser.tokens.selectNext()
+                    return IfOp("If", [node, left, right])
+
+                else:
+                    raise ValueError('Esperava-se um "IF", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+            else:
+                raise ValueError('Esperava-se um "END", porém foi encontrado {}'.format(Parser.tokens.actual.value))
 
         else:
             return NoOp()
 
+    def RelExpression():
+        left = Parser.parseExpression()
+        if Parser.tokens.actual.value == "=":
+            Parser.tokens.selectNext()
+            right = Parser.parseExpression()
+            return BinOp("=", [left, right])
+            
+        elif Parser.tokens.actual.value == ">":
+            Parser.tokens.selectNext()
+            right = Parser.parseExpression()
+            return BinOp(">", [left, right])
+
+        elif Parser.tokens.actual.value == "<":
+            Parser.tokens.selectNext()
+            right = Parser.parseExpression()
+            return BinOp("<", [left, right])
+
+        else:
+            raise ValueError('Esperava-se comparador "=" ou ">" ou "<", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+
     def parseTerm():
         left = Parser.parseFactor()
-        while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div":
+        while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div" or Parser.tokens.actual.type == "and":
             if Parser.tokens.actual.type == "mult":
                 Parser.tokens.selectNext()
                 right =  Parser.parseFactor()
@@ -149,12 +208,17 @@ class Parser:
             elif Parser.tokens.actual.type == "div":
                 Parser.tokens.selectNext()
                 right =  Parser.parseFactor()
-                left = BinOp("/", [left, right]) 
+                left = BinOp("/", [left, right])
+            elif Parser.tokens.actual.type == "and":
+                Parser.tokens.selectNext()
+                right =  Parser.parseFactor()
+                left = BinOp("and", [left, right])
+
         return left
 
     def parseExpression():
         left = Parser.parseTerm()
-        while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
+        while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus" or Parser.tokens.actual.type == "or":
             if Parser.tokens.actual.type == "plus":
                 Parser.tokens.selectNext()
                 right =  Parser.parseTerm()
@@ -163,6 +227,11 @@ class Parser:
                 Parser.tokens.selectNext()
                 right =  Parser.parseTerm()
                 left = BinOp("-", [left, right])
+            elif Parser.tokens.actual.type == "or":
+                Parser.tokens.selectNext()
+                right =  Parser.parseTerm()
+                left = BinOp("or", [left, right])
+
         return left
 
     def parseFactor(): 
@@ -179,21 +248,29 @@ class Parser:
             else:
                 raise ValueError('Esperava-se um fecha parênteses e foi encontrado um {}.'.format(Parser.tokens.actual.type))
 
-        elif Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus":
+        elif Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus" or Parser.tokens.actual.type == "not":
             if Parser.tokens.actual.type == "plus":
                 Parser.tokens.selectNext()
                 left = Parser.parseFactor()
                 left = UnOp("+", [left])
-            else:
+            elif Parser.tokens.actual.type == "minus":
                 Parser.tokens.selectNext()
                 left = Parser.parseFactor()
                 left = UnOp("-", [left])
+            else:
+                Parser.tokens.selectNext()
+                left = Parser.parseFactor()
+                left = UnOp("not", [left])
         
         elif Parser.tokens.actual.type == "identifier":
             res = Parser.tokens.actual.value
             node = Identifier(res, [])
             Parser.tokens.selectNext()
             return node
+
+        elif Parser.tokens.actual.type == INPUT:
+            Parser.tokens.selectNext()
+            return Input('', [])
         
         else:
             raise ValueError('Token inválido: {}'.format(Parser.tokens.actual.value))
@@ -259,6 +336,24 @@ class BinOp(Node): #2 filhos, binary
 
         elif self.value == "/":
             return self.children[0].Evaluate(ST) // self.children[1].Evaluate(ST)
+    
+        elif self.value == "=":
+            return self.children[0].Evaluate(ST) == self.children[1].Evaluate(ST)
+
+        elif self.value == "and":
+            return self.children[0].Evaluate(ST) and self.children[1].Evaluate(ST)
+
+        elif self.value == "or":
+            return self.children[0].Evaluate(ST) or self.children[1].Evaluate(ST)
+    
+        elif self.value == ">":
+            return self.children[0].Evaluate(ST) > self.children[1].Evaluate(ST)
+    
+        elif self.value == "<":
+            return self.children[0].Evaluate(ST) < self.children[1].Evaluate(ST)
+    
+        else:
+            raise ValueError ("Apenas operações com variáveis do mesmo tipo são permitidas")
 
 class UnOp(Node): #1 filho, unary
     def __init__(self, valor, listafilhos):
@@ -272,6 +367,29 @@ class UnOp(Node): #1 filho, unary
         elif self.value == "-":
             return - self.children[0].Evaluate(ST)
 
+        elif self.value == "not":
+            return not self.children[0].Evaluate(ST)
+
+class WhileOp(Node): 
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self, ST):
+        while self.children[0].Evaluate(ST) == True: #para passar por todos
+            self.children[1].Evaluate(ST)
+
+class IfOp(Node): 
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self, ST):
+        if self.children[0].Evaluate(ST) == True:
+            return self.children[1].Evaluate(ST)
+        elif len(self.children) == 3:
+            return self.children[2].Evaluate(ST)
+
 class IntVal(Node): #0 filhos, int value
     def __init__(self, valor, listafilhos):
         self.value = valor
@@ -279,6 +397,15 @@ class IntVal(Node): #0 filhos, int value
 
     def Evaluate(self, ST):
         return self.value
+
+class Input(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self, ST):
+        entrada = input()
+        return int(entrada)
 
 class NoOp(Node): #0 filhos, dummy
     def __init__(self):
@@ -324,7 +451,8 @@ class Print(Node):
 def main():
     try:
         #entrada  = input("Digite o que deseja calcular: ")
-        with open (str(sys.argv[1]), 'r') as file:
+        arquivo = 'expressao.vbs'
+        with open (arquivo, 'r') as file:
             entrada = file.read()# + "\n"
             
         codigo = PrePro.filter(entrada).rstrip() #apaga qualquer coisa que estiver no fim da string, tipo espaço
