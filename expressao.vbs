@@ -1,18 +1,22 @@
-Begin 'teste padrão
-    var1 = 8
-    var2 = 10
+'teste padrão
+var1 = 8
+var2 = 0
+var3 = input
 
-   BEGIN
+WHiLE var2 < var1
+    var2 = var2 + 1
+WENd
 
-        soma = var1 + var2
-        mult = var1 * var2
+If var2 < var1 then 
+    Print var1
+else
+    Print -1
+End if
 
-    ENd
+If var2 = var1 then 
+    Print var2
+else
+    Print -1
+End if
 
-    Print soma
-    PRINT mult
-
-    amor = 2
-    print amor
-
-End
+Print var3
