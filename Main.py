@@ -1,13 +1,16 @@
 import re
 import sys
 
-reserved = ["PRINT", "BEGIN", "END", "WHILE", "WEND", "IF", "ELSE", "THEN", "AND", "OR", "INPUT"]
-PRINT, BEGIN, END, WHILE, WEND, IF, ELSE, THEN, AND, OR, INPUT = reserved
+reserved = ["PRINT", "BEGIN", "END", "WHILE", "WEND", "IF", "ELSE", "THEN", "AND", "OR", "INPUT", "SUB", "MAIN", "DIM", "AS", "INTEGER", "BOOLEAN", "TRUE", "FALSE", "TYPE", "NOT"]
+PRINT, BEGIN, END, WHILE, WEND, IF, ELSE, THEN, AND, OR, INPUT, SUB, MAIN, DIM, AS, INTEGER, BOOLEAN, TRUE, FALSE, TYPE, NOT = reserved
 
 class Token:
     def __init__(self, tipo, valor):
         self.type = tipo # string
         self.value = valor # integer
+
+    def __repr__(self):
+        return "{0} - {1}".format(self.type, self.value)
 
 class Tokenizer:
     def __init__(self, origin, actual):
@@ -74,37 +77,74 @@ class Tokenizer:
             self.position = self.position + 1
 
         elif self.origin[self.position].isalpha():
-            
+
             word = "" #se for palavra vai concatenando, precisa checar se chegou no final
             while self.position < len(self.origin) and (self.origin[self.position].isalpha() or self.origin[self.position].isdigit() or self.origin[self.position] == "_"): 
                 word = word + self.origin[self.position]
                 self.position = self.position + 1
 
             word = word.upper()
-            if word in reserved:
-                self.actual = Token(word, word)
             
+            if word == INTEGER: # se for quebra de linha
+                self.actual = Token(TYPE, INTEGER)
+                self.position = self.position + 1
+
+            elif word == BOOLEAN: # se for quebra de linha
+                self.actual = Token(TYPE, BOOLEAN)
+                self.position = self.position + 1
+
+            elif word == TRUE: # se for quebra de linha
+                self.actual = Token(BOOLEAN, TRUE)
+                self.position = self.position + 1
+                
+            elif word == FALSE: # se for quebra de linha
+                self.actual = Token(BOOLEAN, FALSE)
+                self.position = self.position + 1
+
+            elif word == NOT: # se for quebra de linha
+                self.actual = Token(NOT, NOT)
+                self.position = self.position + 1
+
+
+            elif word in reserved:
+                self.actual = Token(word, word)
+                
             else:
                 self.actual = Token("identifier", word)
-
+                
         else:
             raise ValueError("Caractere inválido: {}.".format(self.origin[self.position]))
 
+        #print(self.actual)
         return self.actual
 
 class Parser:
     @staticmethod
-    def Statements():
+    def Program():
         listafilhos = []
-        while Parser.tokens.actual.type != END and Parser.tokens.actual.type != WEND and Parser.tokens.actual.type != ELSE and Parser.tokens.actual.type != "eof":
-            node = Parser.Statement() 
-            if node != None:
-                listafilhos.append(node)
-                if Parser.tokens.actual.type == "breakline":
+        if Parser.tokens.actual.type == SUB:
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == MAIN:
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "openpar":
                     Parser.tokens.selectNext()
-                #else:
-                #    raise ValueError('Esperava-se token "\\n", porém foi encontrado {}.'.format(Parser.tokens.actual.value))
-        
+                    if Parser.tokens.actual.type == "closepar":
+                        Parser.tokens.selectNext()
+                        if Parser.tokens.actual.type == "breakline":
+                            Parser.tokens.selectNext()
+                            while Parser.tokens.actual.type != END and Parser.tokens.actual.type != "eof":
+                                node = Parser.Statement()
+                                if node != None:
+                                    listafilhos.append(node)
+                                    if Parser.tokens.actual.type == "breakline":
+                                        Parser.tokens.selectNext()
+                                    ###else raise error?
+
+                            if Parser.tokens.actual.type == END:
+                                Parser.tokens.selectNext()
+                                if Parser.tokens.actual.type == SUB:
+                                    Parser.tokens.selectNext()
+
         return Statements("Statements", listafilhos)
 
     @staticmethod
@@ -114,10 +154,8 @@ class Parser:
             Parser.tokens.selectNext()
             if Parser.tokens.actual.type == "assignment":
                 Parser.tokens.selectNext()
-                left = Parser.parseExpression()
-                node = Assignment("=", [identifier, left])
-                if Parser.tokens.actual.type == "breakline":#////////////////////////////////////////////////
-                    Parser.tokens.selectNext()
+                right = Parser.RelExpression()
+                node = Assignment("=", [identifier, right])
                 return node
 
             else:
@@ -125,55 +163,77 @@ class Parser:
 
         elif Parser.tokens.actual.type == PRINT:
             Parser.tokens.selectNext()
-            left = Parser.parseExpression()
+            left = Parser.RelExpression()
             node = Print(PRINT, [left])
-            if Parser.tokens.actual.type == "breakline":#////////////////////////////////////////////////
-                Parser.tokens.selectNext()
             return node
 
         elif Parser.tokens.actual.type == WHILE:
             Parser.tokens.selectNext()
-            left = Parser.RelExpression() 
-            if Parser.tokens.actual.type == "breakline": #breakline se quiser
+            left = Parser.RelExpression()
+            right = []
+            if Parser.tokens.actual.type == "breakline":
                 Parser.tokens.selectNext()
-            right = Parser.Statements()
-            if Parser.tokens.actual.type == WEND:
-                Parser.tokens.selectNext()
-                if Parser.tokens.actual.type == "breakline":#////////////////////////////////////////////////
-                    Parser.tokens.selectNext()
-                return WhileOp("While", [left, right])
-            else:
-                raise ValueError('Esperava-se um "WEND", porém foi encontrado {}'.format(Parser.tokens.actual.value))
-            
-        elif Parser.tokens.actual.type == IF:
-            Parser.tokens.selectNext()
-            node = Parser.RelExpression()
-            left = None
-            right = None
-            if Parser.tokens.actual.type == THEN:
-                Parser.tokens.selectNext()
-                if Parser.tokens.actual.type == "breakline": #breakline se quiser
-                    Parser.tokens.selectNext()
-                left = Parser.Statements() #Faz node if com ele
-            else:
-                raise ValueError('Esperava-se um "THEN", porém foi encontrado {}'.format(Parser.tokens.actual.value))
-
-            if Parser.tokens.actual.type == ELSE:
-                Parser.tokens.selectNext()
-                right = Parser.Statements()
-            
-            if Parser.tokens.actual.type == END:
-                Parser.tokens.selectNext()
-                if Parser.tokens.actual.type == IF:
-                    Parser.tokens.selectNext()
+                while Parser.tokens.actual.type != WEND and Parser.tokens.actual.type != "eof":
+                    right.append(Parser.Statement())
                     if Parser.tokens.actual.type == "breakline":
                         Parser.tokens.selectNext()
-                    return IfOp("If", [node, left, right])
+                
+                if Parser.tokens.actual.type == WEND:
+                    Parser.tokens.selectNext()
+                    return WhileOp("While", [left, right])
 
                 else:
-                    raise ValueError('Esperava-se um "IF", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+                    raise ValueError('Esperava-se um "WEND", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+                
+        elif Parser.tokens.actual.type == IF:
+            Parser.tokens.selectNext()
+            node = [Parser.RelExpression()]
+            left = []
+            right = []
+            if Parser.tokens.actual.type == THEN:
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "breakline":
+                    Parser.tokens.selectNext()
+                    while Parser.tokens.actual.type != END and Parser.tokens.actual.type != ELSE and Parser.tokens.actual.type != "eof":
+                        left.append(Parser.Statement())
+                        if Parser.tokens.actual.type == "breakline":
+                            Parser.tokens.selectNext()
+                    node.append(Statements("Statements", left))
+
+                    if Parser.tokens.actual.type == ELSE:
+                        Parser.tokens.selectNext()
+                        if Parser.tokens.actual.type == "breakline":
+                            Parser.tokens.selectNext()
+                            while Parser.tokens.actual.type != END and Parser.tokens.actual.type != "eof":
+                                right.append(Parser.Statement())
+                                if Parser.tokens.actual.type == "breakline":
+                                    Parser.tokens.selectNext()
+                            node.append(Statements("Statements", right))
+
+                    if Parser.tokens.actual.type == END:
+                        Parser.tokens.selectNext()
+                        if Parser.tokens.actual.type == IF:
+                            Parser.tokens.selectNext()
+                            
+                            return IfOp("If", node)
+
+                        else:
+                            raise ValueError('Esperava-se um "IF", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+                    else:
+                        raise ValueError('Esperava-se um "END", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+
             else:
-                raise ValueError('Esperava-se um "END", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+                raise ValueError('Esperava-se um "THEN", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+        
+        elif Parser.tokens.actual.type == DIM:
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "identifier":
+                identifier = Identifier(Parser.tokens.actual.value, [])
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == AS:
+                    Parser.tokens.selectNext()
+                    tipo = Parser.parseType()
+                    return VarDec("variável", [identifier, tipo])
 
         else:
             return NoOp()
@@ -196,7 +256,8 @@ class Parser:
             return BinOp("<", [left, right])
 
         else:
-            raise ValueError('Esperava-se comparador "=" ou ">" ou "<", porém foi encontrado {}'.format(Parser.tokens.actual.value))
+            return left
+        #    raise ValueError('Esperava-se comparador "=" ou ">" ou "<", porém foi encontrado {}'.format(Parser.tokens.actual.value))
 
     def parseTerm():
         left = Parser.parseFactor()
@@ -242,7 +303,7 @@ class Parser:
 
         elif Parser.tokens.actual.type == "openpar":
             Parser.tokens.selectNext()
-            left = Parser.parseExpression()
+            left = Parser.RelExpression() ###ou expression?
             if Parser.tokens.actual.type == "closepar":
                 Parser.tokens.selectNext()
             else:
@@ -257,10 +318,10 @@ class Parser:
                 Parser.tokens.selectNext()
                 left = Parser.parseFactor()
                 left = UnOp("-", [left])
-            else:
+            elif Parser.tokens.actual.type == NOT:
                 Parser.tokens.selectNext()
                 left = Parser.parseFactor()
-                left = UnOp("not", [left])
+                left = UnOp(NOT, [left])
         
         elif Parser.tokens.actual.type == "identifier":
             res = Parser.tokens.actual.value
@@ -271,16 +332,32 @@ class Parser:
         elif Parser.tokens.actual.type == INPUT:
             Parser.tokens.selectNext()
             return Input('', [])
-        
+
+        elif Parser.tokens.actual.type  == BOOLEAN:
+            value = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+            return BoolVal(value, [])
+
         else:
             raise ValueError('Token inválido: {}'.format(Parser.tokens.actual.value))
         
         return left
 
+    def parseType():
+        if Parser.tokens.actual.type == TYPE:
+            if Parser.tokens.actual.value == INTEGER:
+                Parser.tokens.selectNext()
+                ###ESTÁ CRIANDO NÓ TYPE SEM VALUE INTEGER
+                return Type(INTEGER, [])
+
+            if Parser.tokens.actual.value == BOOLEAN:
+                Parser.tokens.selectNext()
+                return Type(BOOLEAN, [])
+
     def run(origin):
         Parser.tokens = Tokenizer(origin, None)
         Parser.tokens.selectNext()
-        res = Parser.Statements()
+        res = Parser.Program()
         if Parser.tokens.actual.type != 'eof':
             raise ValueError('Entrada inválida. Último token não é o EOF.')
         
@@ -296,20 +373,31 @@ class PrePro():
         return filtro
 
         
-class SymbolTable():
+class SymbolTable(): #agora valor é [valor, tipo] ####FALTA TIPO
     def __init__(self):
         self.table = {}
 
     def getter(self, chave):
         if chave in self.table.keys():
-            res = self.table.get(chave)
-            return res
+            tupla = tuple(self.table.get(chave))
+            return tupla
 
         else:
             raise ValueError("Chave {} não localizada na Tabela de Símbolos".format(chave))
     
-    def setter(self, chave, valor):
-        self.table.update({chave: valor})
+    def setter(self, chave, valor): #((nome da variável, [tipo, "TYPE"]), value)
+        if chave in self.table.keys():
+            self.table[chave][0] = valor
+        else:
+            raise ValueError("Chave {} não existe na Tabela de Símbolos".format(chave))
+        return
+
+    def creator(self, chave, tipo):
+        if chave in self.table.keys():
+            raise ValueError("Chave {} já existe na Tabela de Símbolos".format(chave))
+        else:
+            self.table[chave] = [None, tipo]
+            return
 
 class Node():
     def __init__(self, valor, listafilhos):
@@ -325,35 +413,62 @@ class BinOp(Node): #2 filhos, binary
         self.children = listafilhos
 
     def Evaluate(self, ST):
+        left = self.children[0].Evaluate(ST)
+        right = self.children[1].Evaluate(ST) 
+            
         if self.value == "+":
-            return self.children[0].Evaluate(ST) + self.children[1].Evaluate(ST)
+            if(left[1] == INTEGER and right[1] == INTEGER):
+                return (left[0] + right[0], INTEGER)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "-":
-            return self.children[0].Evaluate(ST) - self.children[1].Evaluate(ST)
+            if(left[1] == INTEGER and right[1] == INTEGER):
+                return (left[0] - right[0], INTEGER)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "*":
-            return self.children[0].Evaluate(ST) * self.children[1].Evaluate(ST)
+            if(left[1] == INTEGER and right[1] == INTEGER):
+                return (left[0] * right[0], INTEGER)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "/":
-            return self.children[0].Evaluate(ST) // self.children[1].Evaluate(ST)
-    
+            if(left[1] == INTEGER and right[1] == INTEGER):
+                return (left[0] // right[0], INTEGER)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
+
         elif self.value == "=":
-            return self.children[0].Evaluate(ST) == self.children[1].Evaluate(ST)
+            if(left[1] == right[1]):
+                return (left[0] == right[0], BOOLEAN)
+            else:
+                raise ValueError ("Apenas operações com variáveis do mesmo tipo são permitidas")
 
         elif self.value == "and":
-            return self.children[0].Evaluate(ST) and self.children[1].Evaluate(ST)
+            if(left[1] == BOOLEAN and right[1] == BOOLEAN):
+                return (left[0] and right[0], BOOLEAN)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo BOOLEAN são permitidas.")
 
         elif self.value == "or":
-            return self.children[0].Evaluate(ST) or self.children[1].Evaluate(ST)
-    
+            if(left[1] == BOOLEAN and right[1] == BOOLEAN):
+                return (left[0] or right[0], BOOLEAN)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo BOOLEAN são permitidas.")
+
         elif self.value == ">":
-            return self.children[0].Evaluate(ST) > self.children[1].Evaluate(ST)
-    
+            if(left[1] == INTEGER and right[1] == INTEGER):
+                return (left[0] > right[0], BOOLEAN)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
+
         elif self.value == "<":
-            return self.children[0].Evaluate(ST) < self.children[1].Evaluate(ST)
-    
-        else:
-            raise ValueError ("Apenas operações com variáveis do mesmo tipo são permitidas")
+            if(left[1] == INTEGER and right[1] == INTEGER):
+                return (left[0] < right[0], BOOLEAN)
+            else:
+                raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
 class UnOp(Node): #1 filho, unary
     def __init__(self, valor, listafilhos):
@@ -361,14 +476,18 @@ class UnOp(Node): #1 filho, unary
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        if self.value == "+":
-            return + self.children[0].Evaluate(ST)
+        child = self.children[0].Evaluate(ST)
+        
+        if child[1] == INTEGER:
+            if self.value == "+":
+                return (+ child[0], INTEGER)
 
-        elif self.value == "-":
-            return - self.children[0].Evaluate(ST)
+            elif self.value == "-":
+                return (- child[0], INTEGER)
 
-        elif self.value == "not":
-            return not self.children[0].Evaluate(ST)
+        elif child[1] == BOOLEAN:
+            if self.value == "not":
+                return (not child[0], BOOLEAN)
 
 class WhileOp(Node): 
     def __init__(self, valor, listafilhos):
@@ -376,8 +495,16 @@ class WhileOp(Node):
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        while self.children[0].Evaluate(ST) == True: #para passar por todos
-            self.children[1].Evaluate(ST)
+        left = self.children[0].Evaluate(ST)
+        if left[1] != BOOLEAN:
+            raise ValueError ("Para esta operação, apenas variáveis do tipo BOOLEAN são permitidas.")
+        while left[0] == TRUE: #para passar por todos
+            for child in self.children[1]:
+                child.Evaluate(ST)
+
+            left = self.children[0].Evaluate(ST)
+            if left[1] != BOOLEAN:
+                raise ValueError ("Esperava-se variável do tipo BOOLEAN.")
 
 class IfOp(Node): 
     def __init__(self, valor, listafilhos):
@@ -385,10 +512,14 @@ class IfOp(Node):
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        if self.children[0].Evaluate(ST) == True:
-            return self.children[1].Evaluate(ST)
-        elif len(self.children) == 3:
-            return self.children[2].Evaluate(ST)
+        left = self.children[0].Evaluate(ST)
+        if left[1] != BOOLEAN:
+            raise ValueError ("Para esta operação, apenas variáveis do tipo BOOLEAN são permitidas.")
+        else:
+            if left[0] == True:
+                self.children[1].Evaluate(ST) 
+            elif len(self.children) == 3:
+                self.children[2].Evaluate(ST) 
 
 class IntVal(Node): #0 filhos, int value
     def __init__(self, valor, listafilhos):
@@ -396,7 +527,7 @@ class IntVal(Node): #0 filhos, int value
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        return self.value
+        return (self.value, INTEGER)
 
 class Input(Node):
     def __init__(self, valor, listafilhos):
@@ -405,7 +536,7 @@ class Input(Node):
 
     def Evaluate(self, ST):
         entrada = input()
-        return int(entrada)
+        return (int(entrada), INTEGER)
 
 class NoOp(Node): #0 filhos, dummy
     def __init__(self):
@@ -421,7 +552,7 @@ class Identifier(Node):
 
     def Evaluate(self, ST):
         st = ST.getter(self.value)
-        return st
+        return st 
 
 class Assignment(Node):
     def __init__(self, valor, listafilhos):
@@ -429,7 +560,12 @@ class Assignment(Node):
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        ST.setter(self.children[0].value, self.children[1].Evaluate(ST)) #(key, value) -> a = 5 
+        tipo = ST.getter(self.children[0].value)[1] #Declaração -> (nome da variável, [tipo, "TYPE"])
+        tupla = self.children[1].Evaluate(ST) #variável (valor, tipo)
+        if tipo == tupla[1]:
+            ST.setter(self.children[0].value, self.children[1].Evaluate(ST)[0]) #(nome da variável, value)
+        else:
+            raise ValueError ("Variável não compatível com o tipo declarado.")
 
 class Statements(Node):
     def __init__(self, valor, listafilhos):
@@ -438,29 +574,54 @@ class Statements(Node):
 
     def Evaluate(self, ST):
         for filho in self.children:
-            filho.Evaluate(ST) #vai dando evaluate em cada filho statement do nó statements
-
+            filho.Evaluate(ST) #vai dando evaluate em cada filho statement do nó program
+            
 class Print(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        print(self.children[0].Evaluate(ST))
+        print(self.children[0].Evaluate(ST)[0])
 
+class Type(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self, ST):
+        return (self.value, "TYPE")
+
+class BoolVal(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self, ST):
+        return (self.value, BOOLEAN)
+
+class VarDec(Node):
+    def __init__(self, valor, listafilhos):
+        self.value = valor
+        self.children = listafilhos
+
+    def Evaluate(self, ST):
+        ST.creator(self.children[0].value, self.children[1].Evaluate(ST)[0])
+        
 def main():
-    try:
+    #try:
         #entrada  = input("Digite o que deseja calcular: ")
-        arquivo = 'expressao.vbs'
-        with open (arquivo, 'r') as file:
+        arquivo = 'expressao.vbs' #sys.argv[1]
+        with open (sys.argv[1], 'r') as file:
             entrada = file.read()# + "\n"
             
         codigo = PrePro.filter(entrada).rstrip() #apaga qualquer coisa que estiver no fim da string, tipo espaço
         res = Parser.run(codigo)
         ST = SymbolTable()
         res.Evaluate(ST)
+        
 
-    except Exception as ex:
-        print(ex)
+    #except Exception as ex:
+    #    print(ex)
 
 if  __name__ =='__main__':main()
