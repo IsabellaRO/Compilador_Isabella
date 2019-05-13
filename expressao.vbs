@@ -6,12 +6,16 @@ dim p2 as integer
 dim projeto as integer
 dim nota as integer
 dim reprovado as boolean
+dim triste as boolean
 
 p1 = 5
 p2 = 3
 projeto = 5
 media = 4
 reprovado = true
+triste = true
+
+'print reprovado and triste
 
 if projeto > media then
     nota = (projeto+p1+p2)/3
