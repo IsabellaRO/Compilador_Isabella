@@ -15,7 +15,7 @@ media = 4
 reprovado = true
 triste = true
 
-'print reprovado and triste
+print (reprovado) and (triste)
 
 if projeto > media then
     nota = (projeto+p1+p2)/3

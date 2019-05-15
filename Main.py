@@ -68,11 +68,11 @@ class Tokenizer:
             self.actual = Token("breakline", "\n")
             self.position = self.position + 1
 
-        elif self.origin[self.position] == '>': # se for quebra de linha
+        elif self.origin[self.position] == '>': # se for greather than
             self.actual = Token("greaterthan", ">")
             self.position = self.position + 1
 
-        elif self.origin[self.position] == '<': # se for quebra de linha
+        elif self.origin[self.position] == '<': # se for less than
             self.actual = Token("lessthan", "<")
             self.position = self.position + 1
 
@@ -85,26 +85,21 @@ class Tokenizer:
 
             word = word.upper()
             
-            if word == INTEGER: # se for quebra de linha
+            if word == INTEGER: # se for integer
                 self.actual = Token(TYPE, INTEGER)
-                self.position = self.position + 1
+                #self.position = self.position + 1
 
-            elif word == BOOLEAN: # se for quebra de linha
+            elif word == BOOLEAN: # se for bool
                 self.actual = Token(TYPE, BOOLEAN)
-                self.position = self.position + 1
+                #self.position = self.position + 1
 
-            elif word == TRUE: # se for quebra de linha
-                self.actual = Token(BOOLEAN, TRUE)
-                self.position = self.position + 1
+            elif word == TRUE: # se for true
+                self.actual = Token(BOOLEAN, True)
+                #self.position = self.position + 1
                 
-            elif word == FALSE: # se for quebra de linha
-                self.actual = Token(BOOLEAN, FALSE)
-                self.position = self.position + 1
-
-            elif word == NOT: # se for quebra de linha
-                self.actual = Token(NOT, NOT)
-                self.position = self.position + 1
-
+            elif word == FALSE: # se for false
+                self.actual = Token(BOOLEAN, False)
+                #self.position = self.position + 1
 
             elif word in reserved:
                 self.actual = Token(word, word)
@@ -259,27 +254,9 @@ class Parser:
             return left
         #    raise ValueError('Esperava-se comparador "=" ou ">" ou "<", porém foi encontrado {}'.format(Parser.tokens.actual.value))
 
-    def parseTerm():
-        left = Parser.parseFactor()
-        while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div" or Parser.tokens.actual.type == "and":
-            if Parser.tokens.actual.type == "mult":
-                Parser.tokens.selectNext()
-                right =  Parser.parseFactor()
-                left = BinOp("*", [left, right])
-            elif Parser.tokens.actual.type == "div":
-                Parser.tokens.selectNext()
-                right =  Parser.parseFactor()
-                left = BinOp("/", [left, right])
-            elif Parser.tokens.actual.type == "and":
-                Parser.tokens.selectNext()
-                right =  Parser.parseFactor()
-                left = BinOp("and", [left, right])
-
-        return left
-
     def parseExpression():
         left = Parser.parseTerm()
-        while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus" or Parser.tokens.actual.type == "or":
+        while Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus" or Parser.tokens.actual.type == OR:
             if Parser.tokens.actual.type == "plus":
                 Parser.tokens.selectNext()
                 right =  Parser.parseTerm()
@@ -288,11 +265,27 @@ class Parser:
                 Parser.tokens.selectNext()
                 right =  Parser.parseTerm()
                 left = BinOp("-", [left, right])
-            elif Parser.tokens.actual.type == "or":
+            elif Parser.tokens.actual.type == OR:
                 Parser.tokens.selectNext()
                 right =  Parser.parseTerm()
-                left = BinOp("or", [left, right])
+                left = BinOp(OR, [left, right])
+        return left
 
+    def parseTerm():
+        left = Parser.parseFactor()
+        while Parser.tokens.actual.type == "mult" or Parser.tokens.actual.type == "div" or Parser.tokens.actual.type == AND:
+            if Parser.tokens.actual.type == "mult":
+                Parser.tokens.selectNext()
+                right =  Parser.parseFactor()
+                left = BinOp("*", [left, right])
+            elif Parser.tokens.actual.type == "div":
+                Parser.tokens.selectNext()
+                right =  Parser.parseFactor()
+                left = BinOp("/", [left, right])
+            elif Parser.tokens.actual.type == AND:
+                Parser.tokens.selectNext()
+                right =  Parser.parseFactor()
+                left = BinOp(AND, [left, right])
         return left
 
     def parseFactor(): 
@@ -309,7 +302,7 @@ class Parser:
             else:
                 raise ValueError('Esperava-se um fecha parênteses e foi encontrado um {}.'.format(Parser.tokens.actual.type))
 
-        elif Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus" or Parser.tokens.actual.type == "not":
+        elif Parser.tokens.actual.type == "plus" or Parser.tokens.actual.type == "minus" or Parser.tokens.actual.type == NOT:
             if Parser.tokens.actual.type == "plus":
                 Parser.tokens.selectNext()
                 left = Parser.parseFactor()
@@ -414,8 +407,8 @@ class BinOp(Node): #2 filhos, binary
 
     def Evaluate(self, ST):
         left = self.children[0].Evaluate(ST)
-        right = self.children[1].Evaluate(ST) 
-            
+        right = self.children[1].Evaluate(ST)
+
         if self.value == "+":
             if(left[1] == INTEGER and right[1] == INTEGER):
                 return (left[0] + right[0], INTEGER)
@@ -442,17 +435,17 @@ class BinOp(Node): #2 filhos, binary
 
         elif self.value == "=":
             if(left[1] == right[1]):
-                return (left[0] == right[0], BOOLEAN)
+                return ((left[0] == right[0]), BOOLEAN)
             else:
                 raise ValueError ("Apenas operações com variáveis do mesmo tipo são permitidas")
 
-        elif self.value == "and":
+        elif self.value == AND:
             if(left[1] == BOOLEAN and right[1] == BOOLEAN):
                 return (left[0] and right[0], BOOLEAN)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo BOOLEAN são permitidas.")
 
-        elif self.value == "or":
+        elif self.value == OR:
             if(left[1] == BOOLEAN and right[1] == BOOLEAN):
                 return (left[0] or right[0], BOOLEAN)
             else:
@@ -486,7 +479,7 @@ class UnOp(Node): #1 filho, unary
                 return (- child[0], INTEGER)
 
         elif child[1] == BOOLEAN:
-            if self.value == "not":
+            if self.value == NOT:
                 return (not child[0], BOOLEAN)
 
 class WhileOp(Node): 
@@ -498,14 +491,14 @@ class WhileOp(Node):
         left = self.children[0].Evaluate(ST)
         if left[1] != BOOLEAN:
             raise ValueError ("Para esta operação, apenas variáveis do tipo BOOLEAN são permitidas.")
-        while left[0] == TRUE: #para passar por todos
+        while left[0]: #para passar por todos
             for child in self.children[1]:
                 child.Evaluate(ST)
 
             left = self.children[0].Evaluate(ST)
             if left[1] != BOOLEAN:
                 raise ValueError ("Esperava-se variável do tipo BOOLEAN.")
-
+        
 class IfOp(Node): 
     def __init__(self, valor, listafilhos):
         self.value = valor
@@ -535,7 +528,7 @@ class Input(Node):
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        entrada = input()
+        entrada = input('>>')
         return (int(entrada), INTEGER)
 
 class NoOp(Node): #0 filhos, dummy
@@ -563,7 +556,7 @@ class Assignment(Node):
         tipo = ST.getter(self.children[0].value)[1] #Declaração -> (nome da variável, [tipo, "TYPE"])
         tupla = self.children[1].Evaluate(ST) #variável (valor, tipo)
         if tipo == tupla[1]:
-            ST.setter(self.children[0].value, self.children[1].Evaluate(ST)[0]) #(nome da variável, value)
+            ST.setter(self.children[0].value, tupla[0]) #(nome da variável, value)
         else:
             raise ValueError ("Variável não compatível com o tipo declarado.")
 
@@ -612,7 +605,8 @@ def main():
     #try:
         #entrada  = input("Digite o que deseja calcular: ")
         arquivo = 'expressao.vbs' #sys.argv[1]
-        with open (sys.argv[1], 'r') as file:
+        teste = 'teste.vbs'
+        with open (sys.argv[1], 'r') as file: #sys.argv[1], 'r') as file:
             entrada = file.read()# + "\n"
             
         codigo = PrePro.filter(entrada).rstrip() #apaga qualquer coisa que estiver no fim da string, tipo espaço
