@@ -2,12 +2,13 @@
 
 
 ### EBNF:
-##### Statements = statement, ("" | ("\n", statements));
-##### Statement = "" | (identifier, "=", expressão) | ("PRINT", expressão) | ("while", expressãorel, statements, "wend") | ("if", expressãorel, "then", statements, ("else", statements, "end", "if") | ("end", "if"));
-##### expressãorel = expressão, ("="|">"|"<"), expressão
-##### expressão = termo, {("+"|"-"|"or"), termo};
-##### termo = factor, {("*"|"/"|"and"), factor};
-##### factor = número | identifier | ("(", expressão, ")") | (("+"|"-"|"not"), factor) | "input";
+##### Program = "Sub", "Main", "(", ")", "\n", {statement, "\n"}, "End", "Sub";
+##### Statement = "" | (identifier, "=", relexpression) | ("PRINT", relexpression) | ("Dim", identifier, "as", Type) |  ("While", relexpression, "\n" {statement, "\n"}, "Wend") | ("If", relexpression, "Then", "\n", {statement, "\n"}, {"Else", "\n", {statement, "\n"}}, "End", "If");
+##### Relexpression = expression, {("="|">"|"<"), expression};
+##### Expression = term, {("+"|"-"|"or"), term};
+##### Term = factor, {("*"|"/"|"and"), factor};
+##### Factor = number | ("True"|"False) | identifier | ("(", relexpression, ")") | (("+"|"-"|"not"), factor) | "Input";
+##### Type = "Integer"|"Boolean";
 
 ### Diagrama Sintático:
 ![Diagrama_compilador](imgs/diagramalc.JPG "Diagrama 1")
