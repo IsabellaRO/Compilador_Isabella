@@ -1,8 +1,8 @@
 import re
 import sys
 
-reserved = ["PRINT", "BEGIN", "END", "WHILE", "WEND", "IF", "ELSE", "THEN", "AND", "OR", "INPUT", "SUB", "MAIN", "DIM", "AS", "INTEGER", "BOOLEAN", "TRUE", "FALSE", "TYPE", "NOT"]
-PRINT, BEGIN, END, WHILE, WEND, IF, ELSE, THEN, AND, OR, INPUT, SUB, MAIN, DIM, AS, INTEGER, BOOLEAN, TRUE, FALSE, TYPE, NOT = reserved
+reserved = ["PRINT", "BEGIN", "END", "WHILE", "WEND", "IF", "ELSE", "THEN", "AND", "OR", "INPUT", "SUB", "MAIN", "DIM", "AS", "INTEGER", "BOOLEAN", "TRUE", "FALSE", "TYPE", "NOT", "FUNCTION", "CALL"]
+PRINT, BEGIN, END, WHILE, WEND, IF, ELSE, THEN, AND, OR, INPUT, SUB, MAIN, DIM, AS, INTEGER, BOOLEAN, TRUE, FALSE, TYPE, NOT, FUNCTION, CALL= reserved
 
 class Token:
     def __init__(self, tipo, valor):
@@ -76,6 +76,10 @@ class Tokenizer:
             self.actual = Token("lessthan", "<")
             self.position = self.position + 1
 
+        elif self.origin[self.position] == ',': # se for virgula
+            self.actual = Token("comma", ",")
+            self.position = self.position + 1
+
         elif self.origin[self.position].isalpha():
 
             word = "" #se for palavra vai concatenando, precisa checar se chegou no final
@@ -117,30 +121,110 @@ class Parser:
     @staticmethod
     def Program():
         listafilhos = []
+        while Parser.tokens.actual.type == SUB or Parser.tokens.actual.type == FUNCTION:
+            if Parser.tokens.actual.type == SUB:
+                listafilhos.append(Parser.SubDec())
+            elif Parser.tokens.actual.type == FUNCTION:
+                listafilhos.append(Parser.FuncDec())
+
+        return Statements("Stmts", listafilhos)
+
+    def SubDec():
         if Parser.tokens.actual.type == SUB:
             Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == MAIN:
+            if Parser.tokens.actual.type == "identifier":
+                identifier1 = Identifier(Parser.tokens.actual.value, [])
                 Parser.tokens.selectNext()
+                params = []
                 if Parser.tokens.actual.type == "openpar":
                     Parser.tokens.selectNext()
+                    if Parser.tokens.actual.type == "identifier":
+                        identifier2 = Identifier(Parser.tokens.actual.value, [])
+                        Parser.tokens.selectNext()
+                        if Parser.tokens.actual.type == AS:
+                            Parser.tokens.selectNext()
+                            tipo1 = Parser.parseType()
+                            params.append(VarDec("variável", [identifier2, tipo1]))
+                            while Parser.tokens.actual.type == "comma":
+                                Parser.tokens.selectNext()
+                                if Parser.tokens.actual.type == "identifier":
+                                identifier3 = Identifier(Parser.tokens.actual.value, [])
+                                Parser.tokens.selectNext()
+                                if Parser.tokens.actual.type == AS:
+                                    Parser.tokens.selectNext()
+                                    tipo2 = Parser.parseType()
+                                    params.append(VarDec("variável", [identifier3, tipo2]))
+
+
                     if Parser.tokens.actual.type == "closepar":
                         Parser.tokens.selectNext()
                         if Parser.tokens.actual.type == "breakline":
                             Parser.tokens.selectNext()
-                            while Parser.tokens.actual.type != END and Parser.tokens.actual.type != "eof":
+                            stmts = []
+                            while Parser.tokens.actual.type != END:
                                 node = Parser.Statement()
-                                if node != None:
-                                    listafilhos.append(node)
-                                    if Parser.tokens.actual.type == "breakline":
-                                        Parser.tokens.selectNext()
-                                    ###else raise error?
+                                if node =! None:
+                                    stmts.append(node)
+                                if Parser.tokens.actual.type == "breakline":
+                                    Parser.tokens.selectNext()
 
                             if Parser.tokens.actual.type == END:
+                                params.append(Statements("stmts", stms))
                                 Parser.tokens.selectNext()
                                 if Parser.tokens.actual.type == SUB:
                                     Parser.tokens.selectNext()
 
-        return Statements("Statements", listafilhos)
+        return SubDec(identifier1, params)
+
+    def FuncDec():
+        if Parser.tokens.actual.type == "FUNCTION":
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "identifier":
+                identifier1 = Identifier(Parser.tokens.actual.value, [])
+                Parser.tokens.selectNext()
+                params = []
+                if Parser.tokens.actual.type == "openpar":
+                    Parser.tokens.selectNext()
+                    if Parser.tokens.actual.type == "identifier":
+                        identifier2 = Identifier(Parser.tokens.actual.value, [])
+                        Parser.tokens.selectNext()
+                        if Parser.tokens.actual.type == AS:
+                            Parser.tokens.selectNext()
+                            tipo1 = Parser.parseType()
+                            params.append(VarDec("variável", [identifier2, tipo1]))
+                            while Parser.tokens.actual.type == "comma":
+                                Parser.tokens.selectNext()
+                                if Parser.tokens.actual.type == "identifier":
+                                identifier3 = Identifier(Parser.tokens.actual.value, [])
+                                Parser.tokens.selectNext()
+                                if Parser.tokens.actual.type == AS:
+                                    Parser.tokens.selectNext()
+                                    tipo2 = Parser.parseType()
+                                    params.append(VarDec("variável", [identifier3, tipo2]))
+
+
+                    if Parser.tokens.actual.type == "closepar":
+                        Parser.tokens.selectNext()
+                        if Parser.tokens.actual.type == AS:
+                            Parser.tokens.selectNext()
+                            tipo3 = Parser.parseType()
+                            if Parser.tokens.actual.type == "breakline":
+                                Parser.tokens.selectNext()
+                                stmts = []
+                                while Parser.tokens.actual.type != END:
+                                    node = Parser.Statement()
+                                    if node =! None:
+                                        stmts.append(node)
+                                    if Parser.tokens.actual.type == "breakline":
+                                        Parser.tokens.selectNext()
+
+                                if Parser.tokens.actual.type == END:
+                                    params.append(Statements("stmts", stms))
+                                    Parser.tokens.selectNext()
+                                    if Parser.tokens.actual.type == "FUNCTION":
+                                        Parser.tokens.selectNext()
+
+        return FuncDec(identifier1, params) #### tipo 3?????
 
     @staticmethod
     def Statement():
@@ -230,6 +314,23 @@ class Parser:
                     tipo = Parser.parseType()
                     return VarDec("variável", [identifier, tipo])
 
+        elif Parser.tokens.actual.type == "CALL":
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "identifier":
+                identifier = Identifier(Parser.tokens.actual.value, [])
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "openpar":
+                    Parser.tokens.selectNext()
+                    nodes = []
+                    while Parser.tokens.actual.type != "closepar":
+                        nodes.append(Parser.RelExpression())
+                        if Parser.tokens.actual.type == "comma":
+                            Parser.tokens.selectNext()
+                    
+                    if Parser.tokens.actual.type == "closepar":
+                        Parser.tokens.selectNext()
+                        return ### tipo do nó?
+
         else:
             return NoOp()
 
@@ -296,7 +397,7 @@ class Parser:
 
         elif Parser.tokens.actual.type == "openpar":
             Parser.tokens.selectNext()
-            left = Parser.RelExpression() ###ou expression?
+            left = Parser.RelExpression()
             if Parser.tokens.actual.type == "closepar":
                 Parser.tokens.selectNext()
             else:
@@ -317,10 +418,20 @@ class Parser:
                 left = UnOp(NOT, [left])
         
         elif Parser.tokens.actual.type == "identifier":
-            res = Parser.tokens.actual.value
-            node = Identifier(res, [])
+            identifier = Identifier(Parser.tokens.actual.value, [])
             Parser.tokens.selectNext()
-            return node
+            nodes = []
+            if Parser.tokens.actual.type == "openpar":
+                Parser.tokens.selectNext()
+                while Parser.tokens.actual.type != "closepar":
+                    nodes.append(Parser.RelExpression())
+                    if Parser.tokens.actual.type == "comma":
+                        Parser.tokens.selectNext()
+                
+                if Parser.tokens.actual.type == "closepar":
+                    Parser.tokens.selectNext()
+                    
+            return ### tipo do nó?
 
         elif Parser.tokens.actual.type == INPUT:
             Parser.tokens.selectNext()
@@ -340,7 +451,6 @@ class Parser:
         if Parser.tokens.actual.type == TYPE:
             if Parser.tokens.actual.value == INTEGER:
                 Parser.tokens.selectNext()
-                ###ESTÁ CRIANDO NÓ TYPE SEM VALUE INTEGER
                 return Type(INTEGER, [])
 
             if Parser.tokens.actual.value == BOOLEAN:
@@ -366,7 +476,7 @@ class PrePro():
         return filtro
 
         
-class SymbolTable(): #agora valor é [valor, tipo] ####FALTA TIPO
+class SymbolTable(): #agora valor é [valor, tipo]
     def __init__(self):
         self.table = {}
 
