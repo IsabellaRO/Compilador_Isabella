@@ -1,4 +1,3 @@
-#encoding=utf-8
 import re
 import sys
 
@@ -256,11 +255,11 @@ class Parser:
         elif Parser.tokens.actual.type == WHILE:
             Parser.tokens.selectNext()
             left = Parser.RelExpression()
-            right = Statements('Statements', [])
+            right = []
             if Parser.tokens.actual.type == "breakline":
                 Parser.tokens.selectNext()
                 while Parser.tokens.actual.type != WEND and Parser.tokens.actual.type != "eof":
-                    right.children.append(Parser.Statement())
+                    right.append(Parser.Statement())
                     if Parser.tokens.actual.type == "breakline":
                         Parser.tokens.selectNext()
                 
@@ -485,109 +484,6 @@ class PrePro():
         #filtro = re.sub("'.*", "", filtro) #apenas para o meu terminal
         return filtro
 
-class Assembler:
-    stringf = ""
-
-    @staticmethod
-    def AddString(string):
-        Assembler.stringf += string + "\n"
-
-    @staticmethod
-    def WriteFile():
-        inicio = """; constantes 
-SYS_EXIT equ 1 
-SYS_READ equ 3 
-SYS_WRITE equ 4 
-STDIN equ 0 
-STDOUT equ 1 
-True equ 1
-False equ 0
-
-segment .data
-
-segment .bss ; variaveis
-  res RESB 1
-
-
-section .text 
-  global _start
-
-print:  ; subrotina print
-
-  PUSH EBP ; guarda o base pointer
-  MOV EBP, ESP ; estabelece um novo base pointer
-
-  MOV EAX, [EBP+8] ; 1 argumento antes do RET e EBP
-  XOR ESI, ESI
-
-print_dec: ; empilha todos os digitos
-  MOV EDX, 0
-  MOV EBX, 0x000A
-  DIV EBX
-  ADD EDX, '0'
-  PUSH EDX
-  INC ESI ; contador de digitos
-  CMP EAX, 0
-  JZ print_next ; quando acabar pula
-  JMP print_dec
-
-print_next:
-  CMP ESI, 0
-  JZ print_exit ; quando acabar de imprimir
-  DEC ESI
-
-  MOV EAX, SYS_WRITE
-  MOV EBX, STDOUT
-
-  POP ECX
-  MOV [res], ECX
-  MOV ECX, res
-
-  MOV EDX, 1
-  INT 0x80
-  JMP print_next
-
-print_exit:
-  POP EBP
-  RET
-
-; subrotinas if/while
-binop_je:
-  JE binop_true
-  JMP binop_false
-
-binop_jg:
-  JG binop_true
-  JMP binop_false
-
-binop_jl:
-  JL binop_true
-  JMP binop_false
-
-binop_false:
-  MOV EBX, False  
-  JMP binop_exit
-
-binop_true:
-  MOV EBX, True
-binop_exit:
-  RET
-
-
-_start :
-
-PUSH EBP ; guarda o base pointer
-MOV EBP, ESP ; estabelece um novo base pointer
-
-"""
-
-        fim = """; interrupcao de saida
-        POP EBP
-        MOV EAX, 1
-        INT 0x80
-        """
-        with open ("output.nasm", 'w') as file:
-                file.write(inicio + Assembler.stringf + fim)
         
 class SymbolTable(): #agora valor é [valor, tipo]
     def __init__(self, anterior=None):
@@ -620,15 +516,13 @@ class SymbolTable(): #agora valor é [valor, tipo]
         return
 
     def creator(self, chave, tipo):
-        self.shift += 4
         if chave in self.table.keys():
             raise ValueError("Chave {} já existe na Tabela de Símbolos".format(chave))
         else:
-            self.table[chave] = [None, tipo, self.shift]
+            self.table[chave] = [None, tipo]
             return
 
 class Node():
-    i = 0
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
@@ -636,89 +530,65 @@ class Node():
     def Evaluate(self, ST):
         pass
 
-    @staticmethod
-    def newId():
-        Node.i += 1
-        return Node.i
-
 class BinOp(Node): #2 filhos, binary
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         left = self.children[0].Evaluate(ST)
-        Assembler.AddString("PUSH EBX")
         right = self.children[1].Evaluate(ST)
-        Assembler.AddString("POP EAX")
 
         if self.value == "+":
             if(left[1] == INTEGER and right[1] == INTEGER):
-                Assembler.AddString("ADD EAX, EBX")
-                Assembler.AddString("MOV EBX, EAX")
                 return (left[0] + right[0], INTEGER)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "-":
             if(left[1] == INTEGER and right[1] == INTEGER):
-                Assembler.AddString("SUB EAX, EBX")
-                Assembler.AddString("MOV EBX, EAX")
                 return (left[0] - right[0], INTEGER)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "*":
             if(left[1] == INTEGER and right[1] == INTEGER):
-                Assembler.AddString("IMUL EBX")
-                Assembler.AddString("MOV EBX, EAX")################
                 return (left[0] * right[0], INTEGER)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "/":
             if(left[1] == INTEGER and right[1] == INTEGER):
-                Assembler.AddString("IDIV EBX")
-                Assembler.AddString("MOV EBX, EAX")##############
                 return (left[0] // right[0], INTEGER)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "=":
             if(left[1] == right[1]):
-                Assembler.AddString("CMP EAX, EBX")
-                Assembler.AddString("CALL binop_je")
                 return ((left[0] == right[0]), BOOLEAN)
             else:
                 raise ValueError ("Apenas operações com variáveis do mesmo tipo são permitidas")
 
         elif self.value == AND:
             if(left[1] == BOOLEAN and right[1] == BOOLEAN):
-                Assembler.AddString("AND EBX, EAX")
                 return (left[0] and right[0], BOOLEAN)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo BOOLEAN são permitidas.")
 
         elif self.value == OR:
             if(left[1] == BOOLEAN and right[1] == BOOLEAN):
-                Assembler.AddString("OR EBX, EAX")
                 return (left[0] or right[0], BOOLEAN)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo BOOLEAN são permitidas.")
 
         elif self.value == ">":
             if(left[1] == INTEGER and right[1] == INTEGER):
-                Assembler.AddString("CMP EAX, EBX")
-                Assembler.AddString("CALL binop_jg")
                 return (left[0] > right[0], BOOLEAN)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "<":
             if(left[1] == INTEGER and right[1] == INTEGER):
-                Assembler.AddString("CMP EAX, EBX")
-                Assembler.AddString("CALL binop_jl")
                 return (left[0] < right[0], BOOLEAN)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
@@ -727,90 +597,65 @@ class UnOp(Node): #1 filho, unary
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         child = self.children[0].Evaluate(ST)
         
         if child[1] == INTEGER:
             if self.value == "+":
-                Assembler.AddString("ADD EBX, 0")
                 return (+ child[0], INTEGER)
 
             elif self.value == "-":
-                Assembler.AddString("MOV EAX, {}".format(child[0]))
-                Assembler.AddString("MOV EBX, -1")
-                Assembler.AddString("IMUl EBX")
-                Assembler.AddString("MOV EBX, EAX")
                 return (- child[0], INTEGER)
 
         elif child[1] == BOOLEAN:
             if self.value == NOT:
-                Assembler.AddString("NEG EBX")
                 return (not child[0], BOOLEAN)
 
 class WhileOp(Node): 
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
-        Assembler.AddString("LOOP_{}:".format(self.id))
         left = self.children[0].Evaluate(ST)
         if left[1] != BOOLEAN:
             raise ValueError ("Para esta operação, apenas variáveis do tipo BOOLEAN são permitidas.")
+        while left[0]: #para passar por todos
+            for child in self.children[1]:
+                child.Evaluate(ST)
 
-        Assembler.AddString("CMP EBX, False")
-        Assembler.AddString("JE EXIT_{}".format(self.id))
-        right = self.children[1].Evaluate(ST)
-
-        Assembler.AddString("JMP LOOP_{}".format(self.id))
-        Assembler.AddString("EXIT_{}:".format(self.id))
-
+            left = self.children[0].Evaluate(ST)
+            if left[1] != BOOLEAN:
+                raise ValueError ("Esperava-se variável do tipo BOOLEAN.")
+        
 class IfOp(Node): 
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
-        Assembler.AddString("If_{}:".format(self.id))
         left = self.children[0].Evaluate(ST)
-        Assembler.AddString("CMP EBX, False")
         if left[1] != BOOLEAN:
             raise ValueError ("Para esta operação, apenas variáveis do tipo BOOLEAN são permitidas.")
         else:
-            if len(self.children) == 3:
-                Assembler.AddString("JE Else_{}".format(self.id))
-            else:
-                Assembler.AddString("JE EndIf_{}".format(self.id))
-                
-            self.children[1].Evaluate(ST)
-            Assembler.AddString("JMP EndIf_{}".format(self.id))
- 
-            if len(self.children) == 3:
-                Assembler.AddString("Else_{}:".format(self.id))
-                self.children[2].Evaluate(ST)
-
-            Assembler.AddString("EndIf_{}:".format(self.id))
-            
+            if left[0] == True:
+                self.children[1].Evaluate(ST) 
+            elif len(self.children) == 3:
+                self.children[2].Evaluate(ST) 
 
 class IntVal(Node): #0 filhos, int value
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
-        Assembler.AddString("MOV EBX, {}".format(self.value))
         return (self.value, INTEGER)
 
 class Input(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         entrada = input('>>')
@@ -818,7 +663,6 @@ class Input(Node):
 
 class NoOp(Node): #0 filhos, dummy
     def __init__(self):
-        self.id = Node.newId()
         pass
 
     def Evaluate(self, ST):
@@ -828,10 +672,8 @@ class Identifier(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
-        Assembler.AddString("MOV EBX, [EBP-{}]".format(ST.getter(self.value)[2]))
         st = ST.getter(self.value)
         return st 
 
@@ -839,13 +681,11 @@ class Assignment(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         tipo = ST.getter(self.children[0].value)[1] #Declaração -> (nome da variável, [tipo, "TYPE"])
         tupla = self.children[1].Evaluate(ST) #variável (valor, tipo)
         if tipo == tupla[1]:
-            Assembler.AddString("MOV [EBP-{}], EBX".format(ST.getter(self.children[0].value)[2]))
             ST.setter(self.children[0].value, tupla[0]) #(nome da variável, value)
         else:
             raise ValueError ("Variável não compatível com o tipo declarado. {}, {}".format(tipo, tupla[1]))
@@ -854,7 +694,6 @@ class Statements(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         for filho in self.children:
@@ -864,19 +703,14 @@ class Print(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         print(self.children[0].Evaluate(ST)[0])
-        Assembler.AddString("PUSH EBX")
-        Assembler.AddString("CALL print")
-        Assembler.AddString("POP EBX")
 
 class Type(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         return (self.value, "TYPE")
@@ -885,20 +719,18 @@ class BoolVal(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
-        Assembler.AddString("MOV EBX,", self.value)
         return (self.value, BOOLEAN)
 
 class VarDec(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
         self.children = listafilhos
-        self.id = Node.newId()
 
     def Evaluate(self, ST):
         ST.creator(self.children[0].value, self.children[1].Evaluate(ST)[0])
+        
 
 class FuncCall(Node):
     def __init__(self, valor, listafilhos):
@@ -946,13 +778,13 @@ class SubDec(Node):
     def Evaluate(self, ST):
         ST.creator(self.value, SUB)
         ST.setter(self.value, self)
-        
+
 def main():
     #try:
         #entrada  = input("Digite o que deseja calcular: ")
         arquivo = 'expressao.vbs' #sys.argv[1]
         teste = 'teste.vbs'
-        with open (arquivo, 'r') as file: #sys.argv[1], 'r') as file:
+        with open (sys.argv[1], 'r') as file: #sys.argv[1], 'r') as file:
             entrada = file.read()# + "\n"
             
         codigo = PrePro.filter(entrada).rstrip() #apaga qualquer coisa que estiver no fim da string, tipo espaço
