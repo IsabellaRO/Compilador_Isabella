@@ -758,7 +758,7 @@ class BoolVal(Node):
         self.id = Node.newId()
 
     def Evaluate(self, ST):
-        Assembler.AddString("MOV EBX,", self.value)
+        Assembler.AddString("MOV EBX, {}".format(self.value))
         return (self.value, BOOLEAN)
 
 class VarDec(Node):
