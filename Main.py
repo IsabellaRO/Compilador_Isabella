@@ -493,11 +493,11 @@ class SymbolTable(): #agora valor é [valor, tipo]
     def getter(self, chave):
         if chave in self.table.keys():
             tupla = self.table[chave]
-            if tupla[0] == None:
-                try:
-                    tupla = tuple(self.anterior.getter(chave))
-                except:
-                    raise ValueError("Falha ao tentar fazer recursão: {}".format(tupla[0]))
+            #if tupla[0] == None:
+            #    try:
+            #        tupla = tuple(self.anterior.getter(chave))
+            #    except:
+            #        raise ValueError("Falha ao tentar fazer recursão: {}".format(tupla[0]))
                 
             return tupla
 
