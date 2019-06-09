@@ -1,23 +1,23 @@
-Function Soma(x as Integer, y as Integer) as Integer
-    Dim a as Integer
-    a = x + y
-    Print a
-    Soma = a
+Function fibonacci(n as integer) as integer
+    ' codigo do raphael costa
+    dim flag as boolean
+    
+    flag = false
+    if n = 0 then
+        fibonacci = 1
+        flag = true
+    end if
+
+    if n = 1 then 
+        fibonacci = 1
+        flag = true
+    end if
+
+    if flag = false then
+        fibonacci = fibonacci(n-2) + fibonacci(n-1)
+    end if
+
 End Function
 Sub Main()
-    Dim a as Integer
-    Dim b as Integer
-    Dim c as Boolean
-    a = 0
-    while a < 3
-        a = a + 1
-    wend
-    b = Soma(a, 4)
-    c = True
-    Print a
-    Print b
-    if c then
-        Print not c
-    end if
+    print fibonacci(5)
 End Sub
-

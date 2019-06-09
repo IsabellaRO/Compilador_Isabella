@@ -44,6 +44,10 @@ class Tokenizer:
             self.actual =  Token("div", "/")
             self.position = self.position + 1
 
+        elif self.origin[self.position] == '//': # se for div
+            self.actual =  Token("div", "/")
+            self.position = self.position + 1
+
         elif self.origin[self.position] == '+': # se for soma
             self.actual =  Token("plus", "+")
             self.position = self.position + 1
@@ -335,6 +339,7 @@ class Parser:
                     
                     if Parser.tokens.actual.type == "closepar":
                         Parser.tokens.selectNext()
+                        print("chamei funccal stmt:", identifier.value, nodes)
                         return FuncCall(identifier.value, nodes)
 
         else:
@@ -436,6 +441,7 @@ class Parser:
                 
                 if Parser.tokens.actual.type == "closepar":
                     Parser.tokens.selectNext()
+                    print("chamei funccal factor:", identifier.value, nodes, nodes[0].value, nodes[0].children)
                     return FuncCall(identifier.value, nodes)
             else:         
                 return identifier
@@ -493,16 +499,23 @@ class SymbolTable(): #agora valor é [valor, tipo]
     def getter(self, chave):
         if chave in self.table.keys():
             tupla = self.table[chave]
-            #if tupla[0] == None:
-            #    try:
-            #        tupla = tuple(self.anterior.getter(chave))
-            #    except:
-            #        raise ValueError("Falha ao tentar fazer recursão: {}".format(tupla[0]))
-                
+            if tupla[0] == None:
+                if self.anterior != None:
+                    if chave in self.anterior.table.keys():
+                    #try:
+                        tupla = tuple(self.anterior.getter(chave))
+                    
+                    #except:
+                    #    raise ValueError("Falha ao tentar fazer recursão: {}".format(tupla[0]))
+                    else:
+                        print("getter ->", tupla)
+                        return tupla
+            print("getter ->", tupla)
             return tupla
 
         elif self.anterior != None:
             tupla = self.anterior.getter(chave)
+            print("getter ->", tupla)
             return tupla
             
         else:
@@ -510,6 +523,7 @@ class SymbolTable(): #agora valor é [valor, tipo]
     
     def setter(self, chave, valor): #((nome da variável, [tipo, "TYPE"]), value)
         if chave in self.table.keys():
+            print("settando ->", chave, valor, self.table[chave][1])
             self.table[chave][0] = valor
         else:
             raise ValueError("Chave {} não existe na Tabela de Símbolos".format(chave))
@@ -537,16 +551,21 @@ class BinOp(Node): #2 filhos, binary
 
     def Evaluate(self, ST):
         left = self.children[0].Evaluate(ST)
+        print("---------------", self.children[0])#.value, left)
         right = self.children[1].Evaluate(ST)
-
+        print("- - - -- - - - -", self.children[1])#.value, right)
+        
         if self.value == "+":
+            print("somando")
             if(left[1] == INTEGER and right[1] == INTEGER):
+                print("soma:", left, right)
                 return (left[0] + right[0], INTEGER)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
 
         elif self.value == "-":
             if(left[1] == INTEGER and right[1] == INTEGER):
+                print(left, right)
                 return (left[0] - right[0], INTEGER)
             else:
                 raise ValueError ("Para esta operação, apenas variáveis com tipo INTEGER são permitidas.")
@@ -684,9 +703,21 @@ class Assignment(Node):
 
     def Evaluate(self, ST):
         tipo = ST.getter(self.children[0].value)[1] #Declaração -> (nome da variável, [tipo, "TYPE"])
+        print("TIPO:", tipo, ST.getter(self.children[0].value)[0], self.children[0].value)
+        '''###
+        print("Getter:", self.children[0].value, ST.getter(self.children[0].value))
+        print("children1:", self.children[1].children)###fazendo soma
+        if len(self.children[1].children) != 0:
+            print("rightttt:", self.children[1])#N = 2
+            print("lefttttt:", self.children[0].value, self.children[0].children)#fibonacci
+        ###'''
+        print(self.children[1])
         tupla = self.children[1].Evaluate(ST) #variável (valor, tipo)
+        print(tupla)
         if tipo == tupla[1]:
             ST.setter(self.children[0].value, tupla[0]) #(nome da variável, value)
+            print("Setter:", self.children[0].value, ST.getter(self.children[0].value))
+        
         else:
             raise ValueError ("Variável não compatível com o tipo declarado. {}, {}".format(tipo, tupla[1]))
 
@@ -737,9 +768,10 @@ class FuncCall(Node):
         self.value = valor
         self.children = listafilhos
 
-    def Evaluate(self, ST):
+    def Evaluate(self, ST): ###Fibonacci [none, integer]
         novaST = SymbolTable(ST)
-        funcDec, tipo = novaST.getter(self.value)
+        funcDec, tipo = novaST.getter(self.value) #[nó subdec/funcdec, "sub"/"function"]
+        print("funccal:", novaST.getter(self.value), self.value)
         if tipo == FUNCTION:
             #Confirma se a qtd de filhos é a mesma tirando tipo (0) e stmts (-1), m = n-2
             vardecs = funcDec.children[1:-1] #Apenas os vardecs
