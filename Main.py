@@ -791,7 +791,7 @@ def main():
         #entrada  = input("Digite o que deseja calcular: ")
         arquivo = 'expressao.vbs' #sys.argv[1]
         teste = 'teste.vbs'
-        with open (arquivo, 'r') as file: #sys.argv[1], 'r') as file:
+        with open (sys.argv[1], 'r') as file: #sys.argv[1], 'r') as file:
             entrada = file.read()# + "\n"
             
         codigo = PrePro.filter(entrada).rstrip() #apaga qualquer coisa que estiver no fim da string, tipo espaço
