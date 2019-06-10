@@ -44,6 +44,10 @@ class Tokenizer:
             self.actual =  Token("div", "/")
             self.position = self.position + 1
 
+        elif self.origin[self.position] == '//': # se for div
+            self.actual =  Token("div", "/")
+            self.position = self.position + 1
+
         elif self.origin[self.position] == '+': # se for soma
             self.actual =  Token("plus", "+")
             self.position = self.position + 1
@@ -174,7 +178,7 @@ class Parser:
                                     Parser.tokens.selectNext()
 
                             if Parser.tokens.actual.type == END:
-                                params.append(Statements("stmts", stmts))### stmts
+                                params.append(Statements("stmts", stmts))
                                 Parser.tokens.selectNext()
                                 if Parser.tokens.actual.type == SUB:
                                     Parser.tokens.selectNext()
@@ -224,7 +228,7 @@ class Parser:
                                         Parser.tokens.selectNext()
 
                                 if Parser.tokens.actual.type == END:
-                                    params.append(Statements("stmts", stmts))### stmts
+                                    params.append(Statements("stmts", stmts))
                                     Parser.tokens.selectNext()
                                     if Parser.tokens.actual.type == "FUNCTION":
                                         Parser.tokens.selectNext()
@@ -490,15 +494,16 @@ class SymbolTable(): #agora valor é [valor, tipo]
         self.table = {}
         self.anterior = anterior
 
-    def getter(self, chave):
+    def getter(self, chave, assignment=False):
         if chave in self.table.keys():
             tupla = self.table[chave]
-            #if tupla[0] == None:
-            #    try:
-            #        tupla = tuple(self.anterior.getter(chave))
-            #    except:
-            #        raise ValueError("Falha ao tentar fazer recursão: {}".format(tupla[0]))
-                
+            if tupla[0] == None and assignment ==False:
+                if self.anterior != None:
+                    #if chave in self.anterior.table.keys():
+                    try:
+                        tupla = tuple(self.anterior.getter(chave))
+                    except:
+                        raise ValueError("Falha ao tentar fazer recursão: {}".format(tupla[0]))
             return tupla
 
         elif self.anterior != None:
@@ -507,7 +512,7 @@ class SymbolTable(): #agora valor é [valor, tipo]
             
         else:
             raise ValueError("Chave {} não localizada na Tabela de Símbolos".format(chave))
-    
+
     def setter(self, chave, valor): #((nome da variável, [tipo, "TYPE"]), value)
         if chave in self.table.keys():
             self.table[chave][0] = valor
@@ -538,7 +543,7 @@ class BinOp(Node): #2 filhos, binary
     def Evaluate(self, ST):
         left = self.children[0].Evaluate(ST)
         right = self.children[1].Evaluate(ST)
-
+        
         if self.value == "+":
             if(left[1] == INTEGER and right[1] == INTEGER):
                 return (left[0] + right[0], INTEGER)
@@ -683,10 +688,11 @@ class Assignment(Node):
         self.children = listafilhos
 
     def Evaluate(self, ST):
-        tipo = ST.getter(self.children[0].value)[1] #Declaração -> (nome da variável, [tipo, "TYPE"])
+        tipo = ST.getter(self.children[0].value, True)[1] #Declaração -> (nome da variável, [tipo, "TYPE"])
         tupla = self.children[1].Evaluate(ST) #variável (valor, tipo)
         if tipo == tupla[1]:
             ST.setter(self.children[0].value, tupla[0]) #(nome da variável, value)
+            
         else:
             raise ValueError ("Variável não compatível com o tipo declarado. {}, {}".format(tipo, tupla[1]))
 
@@ -739,18 +745,19 @@ class FuncCall(Node):
 
     def Evaluate(self, ST):
         novaST = SymbolTable(ST)
-        funcDec, tipo = novaST.getter(self.value)
+        funcDec, tipo = novaST.getter(self.value) #[nó subdec/funcdec, "sub"/"function"]
         if tipo == FUNCTION:
             #Confirma se a qtd de filhos é a mesma tirando tipo (0) e stmts (-1), m = n-2
             vardecs = funcDec.children[1:-1] #Apenas os vardecs
             if len(vardecs) == len(self.children):
+                #Criar variável na nova ST
                 novaST.creator(self.value, funcDec.children[0].Evaluate(novaST)[0])
                 for i in range(len(vardecs)):
                     if vardecs[i].children[1].value == self.children[i].Evaluate(novaST)[1]: #comparando os tipos
                         vardecs[i].Evaluate(novaST)
                         novaST.setter(vardecs[i].children[0].value, self.children[i].Evaluate(novaST)[0])
-            funcDec.children[-1].Evaluate(novaST) ### pega nó statements
-            return novaST.getter(self.value)#Evaluate de todos os statements de acordo com a ST recém criada.
+            funcDec.children[-1].Evaluate(novaST) #pega nó statements
+            return novaST.getter(self.value) #Evaluate de todos os statements de acordo com a ST recém criada.
         
         elif tipo == SUB:
             #Confirma se a qtd de filhos é a mesma tirando stmts (-1)
@@ -759,8 +766,8 @@ class FuncCall(Node):
                 for i in range(len(vardecs)):
                     vardecs[i].Evaluate(novaST)
                     novaST.setter(vardecs[i].children[0].value, self.children[i].Evaluate(novaST)[0])
-            funcDec.children[-1].Evaluate(novaST) ### pega nó statements
-            
+            funcDec.children[-1].Evaluate(novaST) # pega nó statements
+
 class FuncDec(Node):
     def __init__(self, valor, listafilhos):
         self.value = valor
