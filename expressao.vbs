@@ -1,10 +1,18 @@
-Sub test(a as integer)
-    print a
-End Sub
+sub main()
+    Dim i as Integer
+    Dim n as Integer
+    Dim f as Integer
+    n = 5
+    i = 2
+    f = 1
+    while i < n + 1
+        f = f * i
+        i = i + 1
+    wend
+    Print f
 
-Sub main()
-    ' hello world
-    Dim top as integer
-    top = 5
-    Call test(top)
-End Sub
+    if f = 120 then
+    print i
+    end if
+
+end sub
